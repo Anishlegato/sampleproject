@@ -1,0 +1,83 @@
+#!/bin/bash
+# Script to download and install Beacon Backend and Frontend code on server.
+
+gh auth login
+
+FE_REPO=Fueled/beacon-frontend
+FE_DIR_FINAL=/home/ubuntu/dev/beacon-frontend
+FE_DIR_EXTRACTED=/home/ubuntu/deploy-assets/beacon-frontend-staging/dist/
+
+BE_REPO=Fueled/beacon-backend
+BE_DIR_EXTRACTED=/home/ubuntu/deploy-assets
+VENV_BIN=/home/ubuntu/dev/beacon-venv/bin/activate
+
+deploy_frontend () {
+    echo "Frontend Deployment"
+    echo "========================="
+    echo "Retrieving list of releases for frontend.."
+    gh release list -R $FE_REPO
+
+    read -p "Which version you want to install? " VERSION
+
+    echo "Downloading version ", $VERSION " ..."
+    mkdir -p ~/deploy-assets
+    rm -f ~/deploy-assets/*-dist.zip 2>/dev/null
+    gh release download -D deploy-assets -R $FE_REPO $VERSION --pattern="*-dist.zip"
+
+    mkdir -p $FE_DIR_EXTRACTED
+    unzip ~/deploy-assets/staging-dist.zip -d $FE_DIR_EXTRACTED 1> /dev/null
+
+    echo "Clean and replace with latest code..."
+    rm -rf $FE_DIR_FINAL
+    mkdir -p $FE_DIR_FINAL
+    mv $FE_DIR_EXTRACTED $FE_DIR_FINAL
+
+    echo "Finished frontend deployment."
+}
+
+deploy_backend () {
+    echo "Backend Deployment"
+    echo "========================="
+    echo "Retrieving list of releases for backend ($BE_REPO).."
+    gh release list -R $BE_REPO
+
+    read -p "Which version you want to install? " VERSION
+
+    echo "Downloading version ", $VERSION " ..."
+    VERSION_NUM=$(echo "$VERSION" | sed 's/v//')
+
+    mkdir -p ~/deploy-assets/
+    rm -rf ~/deploy-assets/beacon-backend*.zip 2>/dev/null
+    gh release download -D deploy-assets -R $BE_REPO $VERSION --archive=zip
+
+    rm -rf $BE_DIR_EXTRACTED/beacon-backend-$VERSION_NUM
+    mkdir -p $BE_DIR_EXTRACTED
+    unzip ~/deploy-assets/beacon-backend*.zip -d $BE_DIR_EXTRACTED 1> /dev/null
+
+    echo "Clean and replace with latest code..."
+    pushd $BE_DIR_EXTRACTED/beacon-backend-$VERSION_NUM
+    source $VENV_BIN
+    pip install ansible==2.9.27
+    ENV="dev" ANSIBLE_ARGS="--connection=local" REPO_VERSION=$VERSION make run_ansible
+    popd
+    echo "Finished backend deployment."
+}
+
+while true; do
+    read -p "? Do you want to deploy Frontend Dev Environment (y/N)? " yn
+    case $yn in
+        [Yy]* ) deploy_frontend; break;;
+        [Nn]* ) exit;;
+        * ) echo "Please answer y or n.";;
+    esac
+done
+
+
+while true; do
+    read -p "? Do you want to deploy Backend Dev Environment (y/N)? " yn
+    case $yn in
+        [Yy]* ) deploy_backend; break;;
+        [Nn]* ) exit;;
+        * ) echo "Please answer y or n.";;
+    esac
+done
