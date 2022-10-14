@@ -8,15 +8,17 @@ on:
 
 jobs:
   deploy-dev:
-    - name: executing remote ssh commands using ssh key
-      uses: appleboy/ssh-action@master
-      with:
-        host: 3.85.34.146
-        username: ubuntu
-        key: ${{ secrets.SECRET_KEY }}
-        script: |
-          whoami
-          mkdir sampleproject
+    runs-on: ubuntu-latest
+    steps:
+      - name: executing remote ssh commands using ssh key
+        uses: appleboy/ssh-action@master
+        with:
+          host: 3.85.34.146
+          username: ubuntu
+          key: ${{ secrets.SECRET_KEY }}
+          script: |
+            whoami
+            mkdir sampleproject
 
 #  build:
 #
